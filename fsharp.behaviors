@@ -1,0 +1,16 @@
+{:+ {:app [(:lt.objs.plugins/load-js ["codemirror/fsharp.js", "f#_compiled.js"])]
+     :clients [:lt.plugins.fsharp/ifsharp-error
+               :lt.plugins.fsharp/pyzmq-error]
+     :editor.fsharp [:lt.plugins.fsharp/fsharp-exception :lt.plugins.fsharp/on-eval
+                     :lt.plugins.fsharp/on-eval.one
+                     :lt.plugins.fsharp/fsharp-result
+                     :lt.plugins.fsharp/fsharp-success
+                     :lt.plugins.fsharp/fsharp-printer
+                     :lt.plugins.fsharp/fsharp-watch
+                     :lt.plugins.fsharp/fsharp-image
+                     :lt.plugins.fsharp/watch-src
+                     [:lt.object/add-tag :watchable]
+                     (:lt.objs.editor/tab-settings false 4 4)]
+     :files [(:lt.objs.files/file-types [{:name "F#" :exts [:fs :fsx] :mime "text/x-fsharp" :tags [:editor.fsharp]}])]
+     :fsharp.lang [:lt.plugins.fsharp/eval! :lt.plugins.fsharp/connect]}}
+
