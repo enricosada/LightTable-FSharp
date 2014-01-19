@@ -14,6 +14,7 @@
             [lt.plugins.watches :as watches]
             [lt.objs.proc :as proc]
             [clojure.string :as string]
+            [clojure.string.format :as sprintf]
             [lt.objs.clients :as clients]
             [lt.objs.notifos :as notifos]
             [lt.util.load :as load]
@@ -80,15 +81,21 @@
   (let [n (notifos/working "Connecting..")
         obj (object/create ::connecting-notifier client)
         env {}]
-    (proc/exec {:command "fsi"
+    (proc/exec {:command (get-fsi-cmd)
                 :args ["--exec" (escape-spaces py-path) tcp/port (clients/->id client) (escape-spaces (get-fsi))]
                 :cwd project-path
                 :env env
                 :obj obj})))
 
+(defn get-fsi-cmd []
+  (if (platform/win?)
+    "fsi"
+    "fsharpi")
+)
+
 (defn get-fsi []
   (or (:fsharp-exe @fsharp)
-      (.which shell "fsi")
+      (.which shell (get-fsi-cmd))
       ))
 
 
@@ -118,8 +125,8 @@
      (or (not fsharp) (empty? fsharp)) (do
                                          (clients/rem! client)
                                          (notifos/done-working)
-                                         (popup/popup! {:header "We couldn't find fsi."
-                                                      :body "In order to evaluate in F# files, a F# interactive (fsi) has to be installed and on your system PATH."
+                                         (popup/popup! {:header (sprintf "We couldn't find %s." (get-fsi-cmd))
+                                                      :body (sprintf "In order to evaluate in F# files, a F# interactive (%s) has to be installed and on your system PATH." (get-fsi-cmd))
                                                       :buttons [{:label "Download FSharp"
                                                                  :action (fn []
                                                                            (platform/open "http://www.fsharp.org"))}
