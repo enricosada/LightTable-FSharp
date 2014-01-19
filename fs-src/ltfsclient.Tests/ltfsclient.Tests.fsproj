@@ -64,9 +64,17 @@
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Library1.fs" />
     <None Include="packages.config" />
     <None Include="app.config" />
+    <Compile Include="LightTable.fs" />
+    <Compile Include="Library1.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ltfsclient\ltfsclient.fsproj">
+      <Name>ltfsclient</Name>
+      <Project>{70870340-fcfe-472f-8063-770082af204c}</Project>
+      <Private>True</Private>
+    </ProjectReference>
   </ItemGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>

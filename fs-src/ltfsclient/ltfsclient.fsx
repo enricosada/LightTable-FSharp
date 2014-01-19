@@ -13,6 +13,10 @@ open FSharp.Data.Json
 open FSharp.Data
 open Microsoft.FSharp.Compiler.Interactive.Shell
 
+#load "LightTableInterop.fs"
+
+open LtFsClient.LightTableInterop
+
 let argv = fsi.CommandLineArgs 
 
 //Log on file and console
@@ -94,13 +98,12 @@ let eval text  =
 
 // LightTable
 
-let lt_encoding = System.Text.UTF8Encoding()
 
 let write (stream: Stream) (message: string) = 
     let msg = message + "\n"
     log "Sending message:"
     log msg
-    let data = lt_encoding.GetBytes(msg)         
+    let data = LtFsClient.LightTableInterop.Encoding.GetBytes(msg)         
     stream.Write(data, 0, data.Length)
     stream.Flush()
     log "Sent message:"
@@ -109,19 +112,11 @@ let read (stream: Stream) =
     let data = Array.create 1024 (byte 0)
     let bytes = stream.Read(data, 0, data.Length)
     logf "Received bytes: %A" data.[0 .. bytes]
-    let responseData = lt_encoding.GetString(data, 0, bytes)
+    let responseData = LtFsClient.LightTableInterop.Encoding.GetString(data, 0, bytes)
     logf "Received: %A" responseData
     responseData
 
 let unixDirSeparator (path: string) = path.Replace("\\", "/")
-
-type Request = 
-    | Valid of int * string * string option
-    | Malformed of string
-
-type Response = {ClientId: int; Cmd: string; Args: JsonValue}
-
-type Cmd = JsonProvider<""" [63,"editor.eval.fsharp",null] """>
 
 let read_request stream handler =
     log "Waiting for request ..."
@@ -129,15 +124,7 @@ let read_request stream handler =
     let requestRaw = read stream
     log requestRaw
 
-    let request =
-        try
-            let a = Cmd.Parse requestRaw
-            match a.JsonValue with
-            | JsonValue.Array [| JsonValue.Number(cliIdl); JsonValue.String(cmd); args|] -> 
-                let a = if args = JsonValue.Null then None else Some (args.ToString())
-                Request.Valid((int cliIdl), cmd, a)
-            | _ -> Malformed(requestRaw)
-        with e -> Malformed(requestRaw)
+    let request = LtFsClient.LightTableInterop.parseRequest requestRaw
 
     handler stream request
 
@@ -146,36 +133,6 @@ let send_response stream response =
     write stream (mex.ToString())
 
 // Commands
-
-type EvalFSharpSelectedCmdArgs = JsonProvider<"""
-    {"line-ending":null,"name":"test.fs","type-name":"FSharp","path":"C:\\path\\to\\project\\test.fs","mime":"text/x-fsharp","tags":["editor.fsharp"],"code":"1 + 4","meta":{"start":0,"end":0}}
-""">
-
-let (|EvalFSharpSelectedCmd|_|) request =
-    match request with
-    | Valid(clientId, "editor.eval.fsharp", Some args) ->
-        try Some (clientId, (EvalFSharpSelectedCmdArgs.Parse(args)))
-        with e -> None
-    | _ -> None
-
-type EvalFSharpNoSelectionCmdArgs = JsonProvider<""" 
-    {"line-ending":null,"name":"test.fs","type-name":"FSharp","path":"C:\\path\\to\\project\\test.fs","mime":"text/x-fsharp","tags":["editor.fsharp"],"pos":{"line":2,"ch":0},"code":"1 + 4\n\n3\n\n\nlet add x y = x + y\n\n34\n\n3 * 4\n\n"}
-""">
-
-let (|EvalFSharpNoSelectionCmd|_|) request =
-    match request with
-    | Valid(clientId, "editor.eval.fsharp", Some args) ->
-        try Some (clientId, (EvalFSharpNoSelectionCmdArgs.Parse(args)))
-        with e -> None
-    | _ -> None
-
-
-
-let (|CloseCmd|_|) request =
-    match request with
-    | Valid(clientId, "client.close", None) ->
-        Some clientId
-    | _ -> None
 
 let rec handle stream request =
     log "handle request:"
@@ -193,35 +150,28 @@ let rec handle stream request =
         log "Received malformed request, aborting"
         log s |> ignore
 
-    | CloseCmd clientId ->
+    | Valid (clientId, Close) ->
         logf "Client %i closed" clientId |> ignore
 
-    | EvalFSharpSelectedCmd (clientId, args) ->
+    | Valid (clientId, CmdArgs.Eval args) ->
         log "Eval cmd selected"
         let cmd, res =
+            let metaJson (x: (int * int) option) =
+                match x with
+                | None -> json.Null
+                | Some x -> json.Object (Map.ofList [("start", json.Number(decimal <| fst x)); ("end", json.Number(decimal <| snd x))])
+
             match eval (args.Code) with
             | Evaluation.Success ->
-                ("editor.eval.fsharp.success", JsonValue.Object( Map.ofList [("meta", args.Meta.JsonValue)] ))
+                ("editor.eval.fsharp.success", json.Object( Map.ofList [("meta", args.Meta |> metaJson)] ))
             | Evaluation.Result(result) ->
-                ("editor.eval.fsharp.result", JsonValue.Object( Map.ofList [("result", JsonValue.String(result)); ("meta", args.Meta.JsonValue)] ))
+                ("editor.eval.fsharp.result", json.Object( Map.ofList [("result", json.String(result)); ("meta", args.Meta |> metaJson)] ))
             | Evaluation.Exception(exInfo) ->
-                ("editor.eval.fsharp.exception", JsonValue.Object( Map.ofList [("ex", JsonValue.String(exInfo)); ("meta", args.Meta.JsonValue)] ))
+                ("editor.eval.fsharp.exception", json.Object( Map.ofList [("ex", json.String(exInfo)); ("meta", args.Meta |> metaJson)] ))
         responseAndLoop {ClientId = clientId; Cmd = cmd; Args = res}
 
-    | EvalFSharpNoSelectionCmd (clientId, args) ->
-        log "Eval cmd not selected"
-        let cmd, res =
-            match eval (args.Code) with
-            | Evaluation.Success ->
-                ("editor.eval.fsharp.success", JsonValue.Object( Map.ofList [("meta", JsonValue.Null)] ))
-            | Evaluation.Result(result) ->
-                ("editor.eval.fsharp.result", JsonValue.Object( Map.ofList [("result", JsonValue.String(result)); ("meta", JsonValue.Null)] ))
-            | Evaluation.Exception(exInfo) ->
-                ("editor.eval.fsharp.exception", JsonValue.Object( Map.ofList [("ex", JsonValue.String(exInfo)); ("meta", JsonValue.Null)] ))
-        responseAndLoop {ClientId = clientId; Cmd = cmd; Args = res}
-
-    | Valid (clientId, cmd, args) ->
-        logf "Cmd '%s' unsupported (args '%s') " cmd (args.ToString()) |> ignore
+    | Valid (clientId, CmdArgs.Unsupported (cmd, args)) ->
+        logf "Cmd '%s' unsupported (args '%A') " cmd args |> ignore
 
 
 let startClient (ipAddress:IPAddress) port clientId =
