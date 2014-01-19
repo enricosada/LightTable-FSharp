@@ -1,7 +1,11 @@
 
 *.nupkg
+*.nuspec
 *.xml
 
 portable-net40+sl5+wp8+win8
 sl4-windowsphone71
 sl5
+
+FsUnit*
+NUnit*

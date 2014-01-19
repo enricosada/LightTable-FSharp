@@ -4,6 +4,7 @@ obj
 bin
 
 *.suo
+*.sln.DotSettings.user
 
 fs-src/ltfsclient/log.txt
 

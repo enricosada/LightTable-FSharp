@@ -1,5 +1,5 @@
 ﻿
-#I "../packages/FSharp.Compiler.Service.0.0.7-alpha/lib/net40"
+#I "../packages/FSharp.Compiler.Service.0.0.11-alpha/lib/net40"
 #I "../packages/FSharp.Data.1.1.10/lib/net40"
 #r "FSharp.Compiler.Service.dll"
 #r "FSharp.Data.dll"
@@ -65,11 +65,32 @@ let fsi = lazy (
     | None -> failwith "fsi path not set" 
     )
 
-let eval text =
-    let fsiSession = fsi.Value
+let evalExpr (fsiSession:FsiEvaluationSession) text =
     match fsiSession.EvalExpression(text) with
-    | Some value -> Some (sprintf "%A" value.ReflectionValue)
-    | None -> Some (sprintf "Got no result!")
+    | Some value -> (sprintf "%A" value.ReflectionValue)
+    | None -> (sprintf "Got no result!")
+
+let evalInteraction (fsiSession:FsiEvaluationSession) text = 
+    fsiSession.EvalInteraction(text)
+
+type Evaluation =
+    | Success
+    | Exception of string
+    | Result of string
+
+let eval text  =
+    let fsiSession = fsi.Value
+    try
+        let v = evalExpr fsiSession text
+        Evaluation.Result(v)
+    with e ->
+        try
+            evalInteraction fsiSession text
+            Evaluation.Success
+        with e ->
+            let exInfo = [e.Message; e.StackTrace.Replace("\r\n", "\n") ] |> List.fold (fun s x -> x + "\n" + s) ""
+            Evaluation.Exception(exInfo)
+
 
 // LightTable
 
@@ -160,6 +181,13 @@ let rec handle stream request =
     log "handle request:"
     logf "%A" request
 
+    let responseAndLoop response =
+        log "Sending eval response"
+        logf "%A" response
+        send_response stream response
+        log "Sent Eval response"        
+        read_request stream handle
+
     match request with
     | Malformed s ->
         log "Received malformed request, aborting"
@@ -171,42 +199,26 @@ let rec handle stream request =
     | EvalFSharpSelectedCmd (clientId, args) ->
         log "Eval cmd selected"
         let cmd, res =
-            try
-                match eval (args.Code) with
-                | None ->
-                    ("editor.eval.fsharp.success", JsonValue.Object( Map.ofList [("meta", args.Meta.JsonValue)] ))
-                | Some result ->
-                    ("editor.eval.fsharp.result", JsonValue.Object( Map.ofList [("result", JsonValue.String(result)); ("meta", args.Meta.JsonValue)] ))
-            with e ->
-                let exInfo = [e.Message; e.StackTrace.Replace("\r\n", "\n") ] |> List.fold (fun s x -> x + "\n" + s) ""
+            match eval (args.Code) with
+            | Evaluation.Success ->
+                ("editor.eval.fsharp.success", JsonValue.Object( Map.ofList [("meta", args.Meta.JsonValue)] ))
+            | Evaluation.Result(result) ->
+                ("editor.eval.fsharp.result", JsonValue.Object( Map.ofList [("result", JsonValue.String(result)); ("meta", args.Meta.JsonValue)] ))
+            | Evaluation.Exception(exInfo) ->
                 ("editor.eval.fsharp.exception", JsonValue.Object( Map.ofList [("ex", JsonValue.String(exInfo)); ("meta", args.Meta.JsonValue)] ))
-
-        let response = {ClientId = clientId; Cmd = cmd; Args = res}
-        log "Sending eval response"
-        logf "%A" response
-        send_response stream response
-        log "Sent Eval response"        
-        read_request stream handle
+        responseAndLoop {ClientId = clientId; Cmd = cmd; Args = res}
 
     | EvalFSharpNoSelectionCmd (clientId, args) ->
         log "Eval cmd not selected"
         let cmd, res =
-            try
-                match eval (args.Code) with
-                | None ->
-                    ("editor.eval.fsharp.success", JsonValue.Object( Map.ofList [("meta", JsonValue.Null)] ))
-                | Some result ->
-                    ("editor.eval.fsharp.result", JsonValue.Object( Map.ofList [("result", JsonValue.String(result)); ("meta", JsonValue.Null)] ))
-            with e ->
-                let exInfo = [e.Message; e.StackTrace.Replace("\r\n", "\n") ] |> List.fold (fun s x -> x + "\n" + s) "" 
+            match eval (args.Code) with
+            | Evaluation.Success ->
+                ("editor.eval.fsharp.success", JsonValue.Object( Map.ofList [("meta", JsonValue.Null)] ))
+            | Evaluation.Result(result) ->
+                ("editor.eval.fsharp.result", JsonValue.Object( Map.ofList [("result", JsonValue.String(result)); ("meta", JsonValue.Null)] ))
+            | Evaluation.Exception(exInfo) ->
                 ("editor.eval.fsharp.exception", JsonValue.Object( Map.ofList [("ex", JsonValue.String(exInfo)); ("meta", JsonValue.Null)] ))
-
-        let response = {ClientId = clientId; Cmd = cmd; Args = res}
-        log "Sending eval response"
-        logf "%A" response
-        send_response stream response
-        log "Sent Eval response"        
-        read_request stream handle
+        responseAndLoop {ClientId = clientId; Cmd = cmd; Args = res}
 
     | Valid (clientId, cmd, args) ->
         logf "Cmd '%s' unsupported (args '%s') " cmd (args.ToString()) |> ignore
