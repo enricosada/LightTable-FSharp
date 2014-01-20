@@ -8,6 +8,8 @@ This plugin is an alpha implementation of a F# plugin for the [Light Table](http
 2.  fsi (fsharp interactive) should be in your PATH (fsharpi on mono)
 4.  Open up a fsharp file, select some code and use `ctrl/cmd-enter` to eval it.
 
+![Example eval of selection](https://raw.github.com/wiki/enricosada/LightTable-FSharp/images/example-eval-selection.gif)
+
 ## Requirements
 
 You'll need .NET Framework 4 and FSharp 3.0 installed
