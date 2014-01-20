@@ -1,7 +1,7 @@
 {
   "name": "F#",
   "author": "Enrico Sada",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "source": "https://github.com/enricosada/LightTable-FSharp",
   "desc": "F# language plugin for Light Table",
   "dependencies": {
