@@ -14,7 +14,6 @@
             [lt.plugins.watches :as watches]
             [lt.objs.proc :as proc]
             [clojure.string :as string]
-            [clojure.string.format :as sprintf]
             [lt.objs.clients :as clients]
             [lt.objs.notifos :as notifos]
             [lt.util.load :as load]
@@ -125,8 +124,8 @@
      (or (not fsharp) (empty? fsharp)) (do
                                          (clients/rem! client)
                                          (notifos/done-working)
-                                         (popup/popup! {:header (sprintf "We couldn't find %s." (get-fsi-cmd))
-                                                      :body (sprintf "In order to evaluate in F# files, a F# interactive (%s) has to be installed and on your system PATH." (get-fsi-cmd))
+                                         (popup/popup! {:header (str "We couldn't find " (get-fsi-cmd) ".")
+                                                      :body (str "In order to evaluate in F# files, a F# interactive (" (get-fsi-cmd) ") has to be installed and on your system PATH.")
                                                       :buttons [{:label "Download FSharp"
                                                                  :action (fn []
                                                                            (platform/open "http://www.fsharp.org"))}

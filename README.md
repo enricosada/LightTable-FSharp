@@ -5,7 +5,7 @@ This plugin is an alpha implementation of a F# plugin for the [Light Table](http
 ## Installation and Usage
 
 1.  From LightTable's plugin manager, choose the available tab and double-click the "F#" plugin to install it.
-2.  fsi (fsharp interactive) should be in your PATH
+2.  fsi (fsharp interactive) should be in your PATH (fsharpi on mono)
 4.  Open up a fsharp file, select some code and use `ctrl/cmd-enter` to eval it.
 
 ## Requirements
@@ -19,6 +19,11 @@ The clojurescript / lighttable side started by using the Python plugin as a temp
 The CodeMirror file is from [CodeMirror](https://github.com/marijnh/CodeMirror)
 
 ## Changelog
+
+#####  0.1.0
+
+Eval binding of function and values
+Mono compatibility
 
 #####  0.0.1
 
