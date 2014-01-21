@@ -22,6 +22,10 @@ The CodeMirror file is from [CodeMirror](https://github.com/marijnh/CodeMirror)
 
 ## Changelog
 
+#####  0.2.0
+
+Eval of System.Image with inline result
+
 #####  0.1.0
 
 Eval binding of function and values

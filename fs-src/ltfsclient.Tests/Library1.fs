@@ -1,4 +1,4 @@
-﻿module ltfsclient.Tests
+﻿module LightTable.FSharp.Tests.FSI
 //
 //open System
 //open System.IO
