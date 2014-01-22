@@ -1,0 +1,14 @@
+language: objective-c
+
+env:
+  matrix:
+    - MONO_VERSION="3.2.5"
+
+install:
+  - wget "http://download.xamarin.com/MonoFrameworkMDK/Macx86/MonoFramework-MDK-${MONO_VERSION}.macos10.xamarin.x86.pkg"
+  - sudo installer -pkg "MonoFramework-MDK-${MONO_VERSION}.macos10.xamarin.x86.pkg" -target /
+  - mono --runtime=v4.0 ./fs-src/NuGet.exe install NUnit.Runners -Version 2.6.3 -OutputDirectory fs-src/packages -ExcludeVersion
+
+script: 
+  - xbuild ./fs-src/ltfsclient.sln /p:Configuration=Release
+  - mono --runtime=v4.0 ./fs-src/packages/NUnit.Runners/tools/nunit-console.exe ./fs-src/ltfsclient.Tests/ltfsclient.Tests.fsproj/bin/Release/ltfsclient.Tests.dll
