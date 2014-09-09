@@ -70,18 +70,12 @@
                         (object/merge! this {:client client :buffer ""})
                         nil))
 
-(defn escape-spaces [s]
-  (if (= files/separator "\\")
-    (str "\"" s "\"")
-    s))
-
-
 (defn run-py [{:keys [path project-path name client] :as info}]
   (let [n (notifos/working "Connecting..")
         obj (object/create ::connecting-notifier client)
         env {}]
     (proc/exec {:command (get-fsi-cmd)
-                :args ["--exec" (escape-spaces py-path) tcp/port (clients/->id client) (escape-spaces (get-fsi))]
+                :args ["--exec" py-path tcp/port (clients/->id client) (get-fsi)]
                 :cwd project-path
                 :env env
                 :obj obj})))
