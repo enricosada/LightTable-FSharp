@@ -30,7 +30,7 @@ let imageGraphics() =
     g.DrawPath(Pens.Red, shape)
     bmp
 
-let lt = get <| "http://www.lighttable.com/img/logo.png"
+let lt = get <| "http://www.lighttable.com/images/logo.png"
 
 let love = imageGraphics() |> thumb
 
